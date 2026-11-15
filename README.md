@@ -110,6 +110,10 @@ cover the server bill. Running the extractor on your own computer removes the bi
 Download videos you own or have permission to save. Creators hold the copyright in their posts. Instagram's terms
 restrict automated access, so keep use personal and light. ReelSave is not affiliated with Instagram or Meta.
 
+## Credit
+
+Designed and created by Brinsley Davids.
+
 ## Licence
 
 MIT. yt-dlp is released under the Unlicense. ffmpeg is LGPL/GPL.
