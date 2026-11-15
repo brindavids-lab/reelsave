@@ -36,7 +36,7 @@ h1 { font-size: 34px; letter-spacing: -0.02em; margin: 10px 0 6px; }
 .lede { margin: 0; color: var(--dim); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
-form { display: grid; gap: 10px; }
+form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .field {
   display: flex;
   background: var(--card);

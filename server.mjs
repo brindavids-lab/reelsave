@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// ReelSave local server. Zero npm dependencies. Listens on 127.0.0.1 only.
-//   node server.mjs [--open]
+// ReelSave local server. Zero npm dependencies. Listens on 127.0.0.1 only,
+// unless --phone is given, which also serves devices on the same network.
+//   node server.mjs [--open] [--phone]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -55,15 +56,26 @@ function readJson(req, limit = 16 * 1024) {
   });
 }
 
+// Phone mode (--phone) also answers devices on the same Wi-Fi network.
+const PHONE = process.argv.includes('--phone');
+
+function lanAddresses() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((n) => n && n.family === 'IPv4' && !n.internal)
+    .map((n) => n.address);
+}
+
 // Other websites must not drive this server from the person's browser.
+// The Host header must name this machine, and any Origin must match it.
 function isLocalRequest(req) {
   const host = String(req.headers.host || '').replace(/:\d+$/, '');
-  if (host !== '127.0.0.1' && host !== 'localhost') return false;
+  const allowed = new Set(['127.0.0.1', 'localhost', ...(PHONE ? lanAddresses() : [])]);
+  if (!allowed.has(host)) return false;
   const origin = req.headers.origin;
   if (!origin) return true;
   try {
-    const o = new URL(origin);
-    return o.hostname === '127.0.0.1' || o.hostname === 'localhost';
+    return allowed.has(new URL(origin).hostname);
   } catch {
     return false;
   }
@@ -280,9 +292,14 @@ function listen(port, attempts = 10) {
     console.error(err.message);
     process.exit(1);
   });
-  server.listen(port, '127.0.0.1', () => {
+  server.listen(port, PHONE ? '0.0.0.0' : '127.0.0.1', () => {
     const address = `http://localhost:${port}`;
     console.log(`ReelSave is running at ${address}`);
+    if (PHONE) {
+      const ips = lanAddresses();
+      if (ips.length) for (const ip of ips) console.log(`On your phone, same Wi-Fi, open: http://${ip}:${port}`);
+      else console.log('Phone mode is on, but this computer has no Wi-Fi or network address.');
+    }
     const engine = findEngine();
     console.log(engine ? `Engine: yt-dlp ${engine.version} (${engine.label})` : 'Engine: MISSING. Run "node scripts/setup.mjs".');
     if (process.argv.includes('--open')) {

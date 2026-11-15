@@ -7,6 +7,7 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "start": "node server.mjs --open",
+    "phone": "node server.mjs --phone",
     "setup": "node scripts/setup.mjs",
     "update": "node scripts/setup.mjs --update",
     "test": "node --test"
