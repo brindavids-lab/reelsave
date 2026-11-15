@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // ReelSave local server. Zero npm dependencies. Listens on 127.0.0.1 only,
 // unless --phone is given, which also serves devices on the same network.
-//   node server.mjs [--open] [--phone]
+// HOSTED=1 runs it on a server for use from any browser.
+//   node server.mjs [--open] [--phone] [--hosted]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -57,7 +58,12 @@ function readJson(req, limit = 16 * 1024) {
 }
 
 // Phone mode (--phone) also answers devices on the same Wi-Fi network.
+// Hosted mode (HOSTED=1 or --hosted) runs on a server so any browser reaches the page.
 const PHONE = process.argv.includes('--phone');
+const HOSTED = process.env.HOSTED === '1' || process.argv.includes('--hosted');
+// Optional in hosted mode: visitors type this code once before they download.
+const ACCESS_CODE = HOSTED ? String(process.env.ACCESS_CODE || '') : '';
+const ACCESS_TOKEN = ACCESS_CODE ? crypto.createHmac('sha256', ACCESS_CODE).update('reelsave-cookie').digest('hex') : '';
 
 function lanAddresses() {
   return Object.values(os.networkInterfaces())
@@ -70,15 +76,41 @@ function lanAddresses() {
 // The Host header must name this machine, and any Origin must match it.
 function isLocalRequest(req) {
   const host = String(req.headers.host || '').replace(/:\d+$/, '');
-  const allowed = new Set(['127.0.0.1', 'localhost', ...(PHONE ? lanAddresses() : [])]);
-  if (!allowed.has(host)) return false;
   const origin = req.headers.origin;
-  if (!origin) return true;
-  try {
-    return allowed.has(new URL(origin).hostname);
-  } catch {
-    return false;
+  let originHost = null;
+  if (origin) {
+    try {
+      originHost = new URL(origin).hostname;
+    } catch {
+      return false;
+    }
   }
+  if (HOSTED) return Boolean(host) && (originHost === null || originHost === host);
+  const allowed = new Set(['127.0.0.1', 'localhost', ...(PHONE ? lanAddresses() : [])]);
+  return allowed.has(host) && (originHost === null || allowed.has(originHost));
+}
+
+function same(a, b) {
+  const x = crypto.createHash('sha256').update(String(a)).digest();
+  const y = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(x, y);
+}
+
+function isUnlocked(req) {
+  if (!ACCESS_CODE) return true;
+  const m = /(?:^|;\s*)rs=([a-f0-9]{64})/.exec(String(req.headers.cookie || ''));
+  return Boolean(m) && same(m[1], ACCESS_TOKEN);
+}
+
+async function handleUnlock(req, res) {
+  const body = await readJson(req);
+  if (!ACCESS_CODE || !same(body.code || '', ACCESS_CODE)) {
+    await new Promise((r) => setTimeout(r, 800)); // slows guessing
+    return fail(res, 401, 'Wrong code.');
+  }
+  const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `rs=${ACCESS_TOKEN}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure}`);
+  send(res, 200, { ok: true });
 }
 
 function removeJob(id) {
@@ -263,8 +295,10 @@ const server = http.createServer(async (req, res) => {
     const p = url.pathname;
     if (req.method === 'GET' && p === '/api/health') {
       const engine = findEngine();
-      return send(res, 200, { engine: engine ? engine.version : null, ffmpeg: hasFfmpeg() });
+      return send(res, 200, { engine: engine ? engine.version : null, ffmpeg: hasFfmpeg(), locked: !isUnlocked(req), hosted: HOSTED });
     }
+    if (req.method === 'POST' && p === '/api/unlock') return await handleUnlock(req, res);
+    if (p.startsWith('/api/') && !isUnlocked(req)) return fail(res, 401, 'Enter the access code first.');
     if (req.method === 'POST' && p === '/api/info') return await handleInfo(req, res);
     if (req.method === 'POST' && p === '/api/prepare') return await handlePrepare(req, res);
     if (req.method === 'GET' && p.startsWith('/api/job/')) return handleJob(res, p.slice(9));
@@ -292,9 +326,10 @@ function listen(port, attempts = 10) {
     console.error(err.message);
     process.exit(1);
   });
-  server.listen(port, PHONE ? '0.0.0.0' : '127.0.0.1', () => {
+  server.listen(port, PHONE || HOSTED ? '0.0.0.0' : '127.0.0.1', () => {
     const address = `http://localhost:${port}`;
     console.log(`ReelSave is running at ${address}`);
+    if (HOSTED) console.log(`Hosted mode. Access code: ${ACCESS_CODE ? 'on' : 'off'}`);
     if (PHONE) {
       const ips = lanAddresses();
       if (ips.length) for (const ip of ips) console.log(`On your phone, same Wi-Fi, open: http://${ip}:${port}`);

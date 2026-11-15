@@ -1,0 +1,13 @@
+# Render blueprint: one free web service built from the Dockerfile.
+services:
+  - type: web
+    name: reelsave
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: HOSTED
+        value: "1"
+      # Optional. Set a value in the Render dashboard to ask visitors for a code.
+      - key: ACCESS_CODE
+        sync: false

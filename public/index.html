@@ -15,6 +15,14 @@
       <p class="lede">Paste an Instagram link. Download the video. Free, no account, no ads.</p>
     </header>
 
+    <form id="lock" autocomplete="off" hidden>
+      <label for="code" class="sr">Access code</label>
+      <div class="field">
+        <input id="code" type="password" placeholder="Access code" required>
+      </div>
+      <button type="submit">Unlock</button>
+    </form>
+
     <form id="form" autocomplete="off">
       <label for="url" class="sr">Instagram link</label>
       <div class="field">
@@ -35,7 +43,7 @@
     </section>
 
     <footer>
-      <p>ReelSave runs on your computer. Your links go to Instagram and nowhere else.</p>
+      <p id="where">ReelSave runs on your computer. Your links go to Instagram and nowhere else.</p>
       <p>Download posts you have the right to save. Respect the creator's copyright.</p>
       <p id="engine" class="dim"></p>
     </footer>

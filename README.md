@@ -54,6 +54,28 @@ Add the page to your home screen for one tap access (Share, then Add to Home Scr
 Phone mode lets every device on your Wi-Fi use the page, so use it at home and skip it on public Wi-Fi.
 If the phone shows no page, allow Node.js through the computer's firewall when the system asks.
 
+## Use it on your phone with no computer (hosted)
+
+Put ReelSave on a free web host once. After this, you open one web address on any phone or computer.
+
+1. Create a free account at [render.com](https://render.com) and connect your GitHub.
+2. Press New, then Blueprint, and pick your ReelSave repository. Render reads `render.yaml` and the `Dockerfile`.
+3. Wait for the build. Render gives you an address like `https://reelsave.onrender.com`.
+4. Open the address on your phone and add the page to your home screen.
+
+Any host running Docker works the same way: build the `Dockerfile` and expose port 10000.
+
+Set `ACCESS_CODE` in the host's settings if you want the page to ask for a code before downloads. Leave it empty
+for an open page. An open page lets anyone with the address use your free server allowance.
+
+Things to know about hosting:
+
+- Free hosts sleep when idle. The first visit after a pause takes about a minute.
+- Instagram blocks shared server addresses more often than home connections. If lookups fail with a login
+  message, wait and retry, or use phone mode from your own computer.
+- Redeploy from the Render dashboard to pick up the newest yt-dlp when downloads stop working.
+- You are the operator of your hosted copy. Keep it for personal use.
+
 ## When downloads stop working
 
 Instagram changes its site often. yt-dlp ships fixes within days. Run:

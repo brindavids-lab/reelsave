@@ -122,10 +122,28 @@ $('paste').addEventListener('click', async () => {
   }
 });
 
+const lock = $('lock');
+lock.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    await api('/api/unlock', { code: $('code').value });
+    lock.hidden = true;
+    form.hidden = false;
+    say('');
+  } catch (err) {
+    say(err.message, true);
+  }
+});
+
 api('/api/health')
   .then((h) => {
-    if (!h.engine) say('yt-dlp is missing. Run "node scripts/setup.mjs" in the ReelSave folder.', true);
-    else if (!h.ffmpeg) say('ffmpeg is missing. Some videos will fail. Run "node scripts/setup.mjs" for install steps.', true);
+    if (h.hosted) $('where').textContent = 'No ads, no account, no tracking. Your links go to Instagram and nowhere else.';
+    if (h.locked) {
+      form.hidden = true;
+      lock.hidden = false;
+      say('Enter the access code to use this page.');
+    } else if (!h.engine) say(h.hosted ? 'The download engine is missing on this server.' : 'yt-dlp is missing. Run "node scripts/setup.mjs" in the ReelSave folder.', true);
+    else if (!h.ffmpeg) say('ffmpeg is missing. Some videos will fail.', true);
     $('engine').textContent = h.engine ? `Engine: yt-dlp ${h.engine}` : '';
   })
   .catch(() => {});
