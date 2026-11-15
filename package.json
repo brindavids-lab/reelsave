@@ -1,0 +1,14 @@
+{
+  "name": "reelsave",
+  "version": "1.0.0",
+  "description": "Paste an Instagram link, download the reel or video. Free, local, no account, no ads.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.mjs --open",
+    "setup": "node scripts/setup.mjs",
+    "update": "node scripts/setup.mjs --update",
+    "test": "node --test"
+  }
+}

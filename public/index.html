@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReelSave</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <img src="/icon.svg" alt="" width="44" height="44">
+      <h1>ReelSave</h1>
+      <p class="lede">Paste an Instagram link. Download the video. Free, no account, no ads.</p>
+    </header>
+
+    <form id="form" autocomplete="off">
+      <label for="url" class="sr">Instagram link</label>
+      <div class="field">
+        <input id="url" type="text" inputmode="url" placeholder="https://www.instagram.com/reel/..." spellcheck="false" required>
+        <button type="button" id="paste" class="ghost">Paste</button>
+      </div>
+      <button type="submit" id="go">Find video</button>
+    </form>
+
+    <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+
+    <section id="result" hidden>
+      <div class="meta">
+        <strong id="author"></strong>
+        <span id="caption"></span>
+      </div>
+      <ul id="items"></ul>
+    </section>
+
+    <footer>
+      <p>ReelSave runs on your computer. Your links go to Instagram and nowhere else.</p>
+      <p>Download posts you have the right to save. Respect the creator's copyright.</p>
+      <p id="engine" class="dim"></p>
+    </footer>
+  </main>
+
+  <template id="item-tpl">
+    <li class="item">
+      <div class="thumb"><img alt="" loading="lazy"></div>
+      <div class="body">
+        <div class="facts"></div>
+        <div class="actions">
+          <button type="button" data-format="mp4">Download MP4</button>
+          <button type="button" data-format="mp3" class="ghost">Audio MP3</button>
+        </div>
+        <div class="progress" hidden>
+          <div class="bar"><span></span></div>
+          <small></small>
+        </div>
+      </div>
+    </li>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+</html>
