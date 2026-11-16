@@ -1,7 +1,7 @@
 {
   "name": "reelsave",
   "version": "1.0.0",
-  "description": "Paste an Instagram link, download the reel or video. Free, local, no account, no ads.",
+  "description": "Paste an Instagram, TikTok or Facebook link, download the video. Free, local, no account, no ads.",
   "type": "module",
   "license": "MIT",
   "engines": { "node": ">=18" },

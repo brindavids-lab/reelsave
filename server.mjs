@@ -10,8 +10,8 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { findEngine, hasFfmpeg, runEngine, explainError } from './lib/engine.mjs';
-import { normalizeLink, isMediaHost, fileName, parseProgress } from './lib/links.mjs';
+import { findEngine, hasFfmpeg, runEngine, runFf, explainError } from './lib/engine.mjs';
+import { parseLink, SITE_NAMES, isMediaHost, fileName, parseProgress } from './lib/links.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -144,10 +144,11 @@ function describe(entry, index) {
 
 async function handleInfo(req, res) {
   const body = await readJson(req);
-  const link = normalizeLink(body.url);
-  if (!link) return fail(res, 400, 'Paste an Instagram reel or post link, for example https://www.instagram.com/reel/ABC123/');
+  const parsed = parseLink(body.url);
+  if (!parsed) return fail(res, 400, 'Paste an Instagram, TikTok or Facebook video link, for example https://www.instagram.com/reel/ABC123/');
+  const { site, link } = parsed;
   const { code, stdout, stderr } = await runEngine(['-J', link], { timeoutMs: 90 * 1000 });
-  if (code !== 0) return fail(res, 422, explainError(stderr));
+  if (code !== 0) return fail(res, 422, explainError(stderr, SITE_NAMES[site]));
   let data;
   try {
     data = JSON.parse(stdout);
@@ -160,8 +161,11 @@ async function handleInfo(req, res) {
   const first = entries.find(Boolean) || {};
   send(res, 200, {
     link,
+    site,
     code: data.id || first.id || '',
-    author: data.channel || first.channel || data.uploader_id || first.uploader_id || data.uploader || first.uploader || '',
+    author: site === 'facebook'
+      ? data.uploader || first.uploader || ''
+      : data.channel || first.channel || data.uploader_id || first.uploader_id || data.uploader || first.uploader || '',
     caption: String(data.description || first.description || data.title || '').slice(0, 300),
     items,
   });
@@ -170,8 +174,9 @@ async function handleInfo(req, res) {
 // ---- /api/prepare: start fetching one item, report progress, then serve ----
 async function handlePrepare(req, res) {
   const body = await readJson(req);
-  const link = normalizeLink(body.url);
-  if (!link) return fail(res, 400, 'This link is not an Instagram reel or post.');
+  const parsed = parseLink(body.url);
+  if (!parsed) return fail(res, 400, 'This link is not an Instagram, TikTok or Facebook video.');
+  const { site, link } = parsed;
   const format = body.format === 'mp3' ? 'mp3' : 'mp4';
   const item = Number.isInteger(body.item) && body.item >= 1 && body.item <= 50 ? body.item : 1;
   const active = [...jobs.values()].filter((j) => j.state === 'working').length;
@@ -189,7 +194,9 @@ async function handlePrepare(req, res) {
     args.push('-f', 'ba/b', '-x', '--audio-format', 'mp3', '--audio-quality', '0');
   } else {
     // Prefer H.264 with AAC so the file plays on phones and in every editor.
-    args.push('-S', 'vcodec:h264,res,acodec:m4a', '-f', 'bv*+ba/b', '--merge-output-format', 'mp4');
+    // Facebook's "hd" and "sd" files are H.264 with sound in one file. Its other streams are VP9.
+    const pick = site === 'facebook' ? 'hd/sd/bv*+ba/b' : 'bv*+ba/b';
+    args.push('-S', 'vcodec:h264,res,acodec:m4a', '-f', pick, '--merge-output-format', 'mp4');
   }
   args.push(link);
 
@@ -214,11 +221,24 @@ async function handlePrepare(req, res) {
     const produced = fs.readdirSync(dir).find((f) => f === `media.${format}`) || fs.readdirSync(dir).find((f) => f.startsWith('media.'));
     if (code !== 0 || !produced) {
       job.state = 'error';
-      job.message = explainError(stderr);
+      job.message = explainError(stderr, SITE_NAMES[site]);
       return;
     }
-    const ext = path.extname(produced).slice(1) || format;
-    job.file = path.join(dir, produced);
+    let finalName = produced;
+    if (format === 'mp4') {
+      // Phones and editors expect H.264. Convert the rare VP9 or AV1 file.
+      const probe = await runFf('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', path.join(dir, produced)], 30000);
+      const codec = probe.stdout.trim();
+      if (probe.code === 0 && codec && codec !== 'h264') {
+        job.percent = 97;
+        job.message = 'Converting for phones';
+        const out = 'final.mp4';
+        const conv = await runFf('ffmpeg', ['-v', 'error', '-y', '-i', path.join(dir, produced), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', path.join(dir, out)]);
+        if (conv.code === 0 && fs.existsSync(path.join(dir, out))) finalName = out;
+      }
+    }
+    const ext = path.extname(finalName).slice(1) || format;
+    job.file = path.join(dir, finalName);
     job.name = fileName([body.author, body.code, body.items > 1 ? String(item) : ''], ext);
     job.size = fs.statSync(job.file).size;
     job.percent = 100;
@@ -249,8 +269,8 @@ function handleFile(res, id) {
   fs.createReadStream(job.file).pipe(res);
 }
 
-// Preview images come from Instagram's media servers through this server,
-// because Instagram blocks them when a page on another address asks.
+// Preview images come from the sites' media servers through this server,
+// because the sites block them when a page on another address asks.
 async function handleThumb(res, target) {
   let url;
   try {
@@ -260,7 +280,8 @@ async function handleThumb(res, target) {
   }
   if (url.protocol !== 'https:' || !isMediaHost(url.hostname)) return fail(res, 400, 'Bad address');
   try {
-    const r = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15000) });
+    const headers = /tiktok|ttwstatic/.test(url.hostname) ? { Referer: 'https://www.tiktok.com/' } : {};
+    const r = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.timeout(15000) });
     const type = r.headers.get('content-type') || '';
     if (!r.ok || !type.startsWith('image/')) return fail(res, 502, 'No preview');
     const buf = Buffer.from(await r.arrayBuffer());

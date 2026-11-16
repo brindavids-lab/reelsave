@@ -24,7 +24,7 @@ const clock = (s) => (s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).pa
 const megabytes = (n) => (n ? `${(n / 1048576).toFixed(1)} MB` : '');
 
 function render() {
-  $('author').textContent = post.author ? `@${post.author}` : 'Instagram post';
+  $('author').textContent = post.author ? (post.site === 'facebook' ? post.author : `@${post.author}`) : 'Video post';
   $('caption').textContent = post.caption || '';
   list.replaceChildren();
   for (const item of post.items) {
@@ -41,7 +41,7 @@ function render() {
       mp3.disabled = true;
       mp3.dataset.off = '1';
       mp3.textContent = 'No sound';
-      mp3.title = 'Instagram reports this video has no sound.';
+      mp3.title = 'This video has no sound.';
     }
     for (const button of node.querySelectorAll('button')) {
       button.addEventListener('click', () => download(node, item, button.dataset.format));
@@ -96,7 +96,7 @@ form.addEventListener('submit', async (event) => {
   result.hidden = true;
   go.disabled = true;
   go.textContent = 'Looking';
-  say('Asking Instagram for this post.');
+  say('Looking this post up.');
   try {
     post = await api('/api/info', { url: input.value });
     say('');
@@ -137,7 +137,7 @@ lock.addEventListener('submit', async (event) => {
 
 api('/api/health')
   .then((h) => {
-    if (h.hosted) $('where').textContent = 'No ads, no account, no tracking. Your links go to Instagram and nowhere else.';
+    if (h.hosted) $('where').textContent = 'No ads, no account, no tracking. Your links go to the site you paste from and nowhere else.';
     if (h.locked) {
       form.hidden = true;
       lock.hidden = false;

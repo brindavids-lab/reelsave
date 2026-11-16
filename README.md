@@ -1,8 +1,8 @@
 # ReelSave
 
-Paste an Instagram link. Download the reel or video. Free, open source, no account, no ads, no limits.
+Paste an Instagram, TikTok or Facebook link. Download the video. Free, open source, no account, no ads, no limits.
 
-ReelSave runs on your own computer. Your links go to Instagram and nowhere else. There is no server to pay for,
+ReelSave runs on your own computer. Your links go to the site you paste from and nowhere else. There is no server to pay for,
 so there is nothing to charge you for.
 
 ## What you get
@@ -11,9 +11,18 @@ so there is nothing to charge you for.
 - **Download MP4** saves the best quality in H.264, which plays on phones and in every editor
 - **Audio MP3** saves the sound only
 - Carousel posts list every video with its own buttons
-- Works with links like `instagram.com/reel/...`, `/reels/...`, `/p/...`, `/tv/...` and `/share/...`
+- Every MP4 arrives as H.264. ReelSave converts the rare VP9 file for you
 
-Photo posts, stories and private accounts are out of scope. ReelSave never asks for your Instagram login.
+Supported links:
+
+| Site      | Link shapes                                                                 |
+| --------- | --------------------------------------------------------------------------- |
+| Instagram | `instagram.com/reel/...`, `/reels/...`, `/p/...`, `/tv/...`, `/share/...`   |
+| TikTok    | `tiktok.com/@name/video/...`, `tiktok.com/t/...`, `vm.tiktok.com/...`, `vt.tiktok.com/...` |
+| Facebook  | `facebook.com/reel/...`, `/watch/?v=...`, `/page/videos/...`, `/share/v/...`, `/share/r/...`, `fb.watch/...` |
+
+Photo posts, stories, private accounts and friends-only or group posts are out of scope. ReelSave never asks for
+a login to any site.
 
 ## Install
 
@@ -84,19 +93,19 @@ Instagram changes its site often. yt-dlp ships fixes within days. Run:
 node scripts/setup.mjs --update
 ```
 
-If Instagram says a login is required, wait a few minutes. Instagram limits how many posts one network
+If a site says a login is required, wait a few minutes. The sites limit how many posts one network
 looks up without an account.
 
 ## How ReelSave works
 
 ```
-browser page  ->  local server (127.0.0.1)  ->  yt-dlp  ->  Instagram
+browser page  ->  local server (127.0.0.1)  ->  yt-dlp  ->  Instagram, TikTok or Facebook
                         |                         |
                         +------  ffmpeg joins video and sound  ------> your Downloads folder
 ```
 
 - `server.mjs`: the local server. Zero dependencies. Listens on 127.0.0.1 only (plus your Wi-Fi network in phone mode) and rejects requests from other sites.
-- `lib/links.mjs`: accepts Instagram post links only and rewrites them to a canonical form.
+- `lib/links.mjs`: accepts Instagram, TikTok and Facebook video links only and rewrites them to a canonical form.
 - `lib/engine.mjs`: finds and runs yt-dlp without a shell.
 - `public/`: the page. No trackers, no analytics, no external scripts.
 
@@ -107,8 +116,8 @@ cover the server bill. Running the extractor on your own computer removes the bi
 
 ## Use it fairly
 
-Download videos you own or have permission to save. Creators hold the copyright in their posts. Instagram's terms
-restrict automated access, so keep use personal and light. ReelSave is not affiliated with Instagram or Meta.
+Download videos you own or have permission to save. Creators hold the copyright in their posts. Each site's terms
+restrict automated access, so keep use personal and light. ReelSave is not affiliated with Instagram, Meta or TikTok.
 
 ## Promo reel
 
